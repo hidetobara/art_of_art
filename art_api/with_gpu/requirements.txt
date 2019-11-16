@@ -10,4 +10,4 @@ tensorboard
 terminaltables
 pillow
 tqdm
-Flask==0.12
+Flask==1.0
