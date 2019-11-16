@@ -1,0 +1,8 @@
+﻿### How to use docker ###
+
+nvidia-docker build --build-arg UID=`id -u` -t torch_yolov3 .
+nvidia-docker run -it -v /mnt/storage0/work/obara:/project -p 5000:5000 --name c_yolov3 torch_yolov3
+
+### Maintanance ###
+# 中間イメージ削除
+docker images -aq | xargs docker rmi

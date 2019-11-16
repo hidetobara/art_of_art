@@ -1,0 +1,10 @@
+*.pth
+*.jpg
+*.tar
+*.out
+
+__pycache__
+
+private/*
+models/*
+
