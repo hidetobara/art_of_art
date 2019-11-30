@@ -35,7 +35,7 @@ namespace Art
 			_WebCamTexture = new WebCamTexture(512, 512);
 			_WebCamTexture.Play();
 			RawImage.texture = _WebCamTexture;
-			Debug.Log(_WebCamTexture.height + "," + _WebCamTexture.width);
+			//Debug.Log(_WebCamTexture.height + "," + _WebCamTexture.width);
 
 #if UNITY_EDITOR
 			_CameraRotation = Quaternion.Euler(0, 0, 0);
@@ -60,7 +60,7 @@ namespace Art
 
 		public void OnPressTimeline()
 		{
-			SceneManager.LoadScene("TimelineScene");
+			SceneManager.LoadScene(ArtScene.TIMELINE);
 		}
 
 		public void OnPressTwitter()
@@ -87,6 +87,7 @@ namespace Art
 			if (_Status == CameraStatus.Responsed)
 			{
 				_TransferedUrl = null;
+				_CurrentStyle = type;
 				_WebCamTexture.Play();
 				RawImage.texture = _WebCamTexture;
 				_Status = CameraStatus.Playing;
@@ -161,7 +162,7 @@ namespace Art
 			{
 				remain += Time.deltaTime;
 				float rate = remain / TOTAL_MAX;
-				RawImage.color = new Color(Mathf.Cos(rate) * 0.5f + 0.5f, Mathf.Cos(rate * 7) * 0.5f + 0.5f, Mathf.Cos(rate * 5) * 0.5f + 0.5f);
+				RawImage.color = new Color(Mathf.Cos(rate * 3) * 0.5f + 0.5f, Mathf.Cos(rate * 11) * 0.5f + 0.5f, Mathf.Cos(rate * 5) * 0.5f + 0.5f);
 				if (rate >= TOTAL_MAX) break;
 				yield return null;
 			}

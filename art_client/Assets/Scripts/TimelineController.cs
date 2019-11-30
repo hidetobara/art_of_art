@@ -16,6 +16,8 @@ namespace Art
 	public class TimelineController : MonoBehaviour
 	{
 		const string URL_TIMELINE = "https://art-of-art-api-bv7fhayawq-an.a.run.app/timeline.json";
+		const int CELL_LIMIT = 8;
+		private string _RootDir;
 
 		public GameObject Content;
 		public GameObject Base;
@@ -24,6 +26,9 @@ namespace Art
 
 		void Start()
 		{
+			_RootDir = System.IO.Path.Combine(Application.persistentDataPath, "timeline");
+			if (!System.IO.Directory.Exists(_RootDir)) System.IO.Directory.CreateDirectory(_RootDir);
+
 			StartCoroutine(GettingTimeline());
 		}
 
@@ -57,16 +62,43 @@ namespace Art
 			foreach (var url in urls)
 			{
 				Debug.Log("url=" + url);
-				request = UnityWebRequest.Get(url);
-				yield return request.SendWebRequest();
-				if (request.isNetworkError || request.responseCode != 200) continue;
-				Texture2D texture = new Texture2D(256, 256, TextureFormat.RGB24, false);
-				texture.LoadImage(request.downloadHandler.data);
-
+				Texture2D texture = LoadTexture(url);
+				if(texture == null)
+				{
+					request = UnityWebRequest.Get(url);
+					yield return request.SendWebRequest();
+					texture = SaveTexture(request);
+				}
+				if (texture == null) continue;
 				var image = MakeOneCell();
 				image.texture = texture;
-				if (_Cells.Count >= 8) break;
+				if (_Cells.Count >= CELL_LIMIT) break;
 			}
+		}
+
+		private Texture2D LoadTexture(string url)
+		{
+			string filename = System.IO.Path.GetFileName(url);
+			string path = System.IO.Path.Combine(Application.persistentDataPath, "timeline", filename);
+			if (!System.IO.File.Exists(path)) return null;
+
+			Texture2D texture = new Texture2D(256, 256);
+			texture.LoadImage(System.IO.File.ReadAllBytes(path));
+			Debug.Log("loaded texture=" + filename);
+			return texture;
+		}
+
+		private Texture2D SaveTexture(UnityWebRequest request)
+		{
+			if (request.isNetworkError || request.responseCode != 200) return null;
+			var texture = new Texture2D(256, 256, TextureFormat.RGB24, false);
+			texture.LoadImage(request.downloadHandler.data);
+
+			string filename = System.IO.Path.GetFileName(request.url);
+			string path = System.IO.Path.Combine(Application.persistentDataPath, "timeline", filename);
+			System.IO.File.WriteAllBytes(path, request.downloadHandler.data);
+
+			return texture;
 		}
 
 		private RawImage MakeOneCell()
@@ -89,9 +121,25 @@ namespace Art
 			return image;
 		}
 
+		public void OnPressReload()
+		{
+			ClearCells();
+			StartCoroutine(GettingTimeline());
+		}
+
 		public void OnPressCamera()
 		{
-			SceneManager.LoadScene("CameraScene");
+			SceneManager.LoadScene(ArtScene.CAMERA);
+		}
+
+		private void ClearCells()
+		{
+			foreach(var c in _Cells)
+			{
+				Destroy(c.gameObject);
+				Destroy(c.texture);
+			}
+			_Cells.Clear();
 		}
 	}
 }
