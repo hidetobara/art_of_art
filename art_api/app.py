@@ -10,6 +10,8 @@ import net
 from function import adaptive_instance_normalization, single_adaptive_instance_normalization, correct_adaptive_instance_normalization
 from function import coral
 
+import Store
+
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = './private/art-of-art-d539cb4f9b4c.json'
 from google.cloud import storage
 
@@ -63,7 +65,7 @@ def run_transter(args):
 
     client = storage.Client()
     bucket = client.get_bucket(env.bucket_id)
-    blob = bucket.blob('{}/{}.jpg'.format(now.strftime("%Y/%m"), args.basename))
+    blob = bucket.blob(args.blob_path)
     result = blob.upload_from_filename(filename=args.out_path)
     blob.make_public()
     return blob
@@ -73,12 +75,7 @@ def storage_blobs(head):
     bucket = client.get_bucket(env.bucket_id)
     blobs = []
     for b in bucket.list_blobs(prefix=head):
-        #print(b.public_url, b.self_link)
-        if b.public_url is None:
-            b.make_public()
-        else:
-            link = b.public_url
-        blobs.append({'name':b.name, 'url':link})
+        blobs.append({'name':b.name, 'url':b.public_url})
     return blobs
 
 # web main
@@ -90,6 +87,7 @@ class Env:
 class Args:
     def __init__(self, mode='js'):
         if mode not in ['js','azs','klmt','ink']: mode = 'js'
+        self.mode = mode
         self.vgg = "models/vgg_normalised.pth"
         self.decoder = "models/decoder_{}.pth.tar".format(mode)
         self.abstracter = "models/abstracter_{}.pth.tar".format(mode)
@@ -98,10 +96,12 @@ class Args:
         self.basename = None
         self.in_path = None
         self.out_path = None
+        self.blob_path = None
 
 now = datetime.datetime.now()
 last_month = datetime.datetime.now().replace(day=1) - datetime.timedelta(days=2)
 env = Env()
+store = Store.Store()
 app = Flask(__name__)
 
 def random_name(n):
@@ -140,11 +140,12 @@ def post_transger():
         a.in_path = os.path.join(env.tmp, a.basename + "_i.jpg")
         out_filename = a.basename + "_o.jpg"
         a.out_path = os.path.join(env.tmp, out_filename)
+        a.blob_path = '{}/{}.jpg'.format(now.strftime("%Y/%m"), a.basename)
         print("transter>", out_filename, mode)
         target.save(a.in_path)
         b = run_transter(a)
+        store.record_transfer(a.blob_path, None, a.mode)
         return redirect(b.public_url)
-        #return send_from_directory(env.tmp, out_filename)
     except Exception as ex:
         print(ex)
         traceback.print_exc()
@@ -154,6 +155,31 @@ def post_transger():
 def get_timeline():
     blobs = storage_blobs(head=now.strftime("%Y/%m/"))
     return json.dumps( {'result':'ok', 'paths':blobs} )
+
+@app.route('/like', methods=['POST','GET'])
+def get_like():
+    try:
+        if request.method == 'POST':
+            user = request.form["user"] if "user" in request.form else None
+            path = request.form["path"]
+        else:
+            user = request.args.get("user", default=None)
+            path = request.args.get("path")
+        if store.exist_transfer(path):
+            store.record_favorite(path, user)
+            return json.dumps( {'result':'ok'} )
+        else:
+            return json.dumps( {'result':'fail', 'error':'NOT found'} )
+    except Exception as ex:
+        traceback.print_exc()
+        return json.dumps( {'result':'fail', 'error':str(ex)} )
+
+@app.route('/favorites.json', methods=['GET'])
+def get_favorites():
+    try:
+        return json.dumps( {'result':'ok', 'items':store.collect_favorites()} )
+    except Exception as ex:
+        return json.dumps( {'result':'fail', 'error':str(ex)} )
 
 @app.route('/info', methods=['GET'])
 def get_info():
@@ -165,7 +191,6 @@ def get_info():
     for p in glob.glob('./templates/*'):
         array.append('templates=' + p)
     return "\n".join(array)
-
 
 if __name__ == "__main__":
     os.makedirs(env.tmp, exist_ok=True)

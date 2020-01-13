@@ -2,7 +2,7 @@
 docker build -t art .
 
 # run
-docker run -it --rm -p 8080:8080 -v /c/obara/art_of_art:/app art /bin/bash
+docker run -it --rm -p 8080:8080 -v C:\obara\ArtProject\art_api:/app art /bin/bash
 
 # push
 # memory_size = 2G
